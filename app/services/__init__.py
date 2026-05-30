@@ -93,18 +93,31 @@ SQL:"""
     
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
             temperature=0
         )
-        sql = response.choices[0].message.content.strip()
-        for line in sql.split('\n'):
+        content = response.choices[0].message.content.strip()
+        
+        # Remove markdown code blocks
+        if "```sql" in content.lower():
+            content = content.split("```sql")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0] if "```" in content else content
+        
+        content = content.strip().strip(';').strip()
+        
+        # Find SQL lines
+        for line in content.split('\n'):
             clean_line = line.strip().strip(';').strip()
             if clean_line and clean_line.upper().startswith("SELECT"):
                 return clean_line
+        
+        # Fallback only if no SELECT found
         return "SELECT * FROM students LIMIT 5"
-    except Exception:
+    except Exception as e:
+        print(f"Groq API error: {e}")
         return "SELECT * FROM students LIMIT 5"
 
 
